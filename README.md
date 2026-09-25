@@ -23,7 +23,36 @@ curl → GET /orders/{circuitKey} → circuit-breaker:execute → GET /backend/o
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/orders/{circuitKey}` | Client endpoint; `circuitKey` selects which circuit this call belongs to |
+| GET | `/orders-bypass/{circuitKey}` | Same client contract and same backend call as `/orders/{circuitKey}`, but never wrapped in `<circuit-breaker:execute>` — the latency baseline used to measure the Object Store's overhead (see [Limits](#limits)) |
 | GET | `/backend/orders` | Simulated backend; behaviour controlled by the `X-Demo-Backend-Mode` request header |
+| GET | `/health` | `{ status, application, environment }` — used by the pipeline's post-deployment smoke test |
+
+Every response also carries an `X-Replica-Id` header (the CloudHub 2.0 pod's `HOSTNAME`), so a
+caller can tell which replica answered — see [Delivery flow](#delivery-flow) and
+[Environments](#environments).
+
+## Delivery flow
+
+```
+feature/* ──PR──▶ develop ──▶ SNAPSHOT to Exchange ──▶ test (CloudHub 2.0, 2 replicas)
+```
+
+This repo follows the same GitFlow/Azure Pipelines pattern as
+[mulesoft-orders-api](https://github.com/brunosouzas/mulesoft-orders-api) — see
+[`azure-pipelines.yml`](azure-pipelines.yml), [`deployment/test.yaml`](deployment/test.yaml) and
+[CONTRIBUTING.md](CONTRIBUTING.md). **BRU-58 only exercises `develop` → `test`.** `main` (Maven
+release, `uat`, `prod`) is deliberately out of scope for this issue — production environments are
+excluded by design, and `uat`/`prod` are left for a future issue rather than spending the trial
+account's resources on environments this validation doesn't need.
+
+## Environments
+
+| Environment | Health check | Replicas |
+|---|---|---|
+| test | *filled in after the first pipeline deploy — see [`deployment/test.yaml`](deployment/test.yaml)* | 2 × 0.1 vCore |
+
+Runs on an Anypoint Platform trial and may be stopped when the trial ends (24/10/2026) — the
+evidence in [`evidence/BRU-58/`](evidence/BRU-58/) does not depend on it staying up.
 
 ## Running locally
 
@@ -42,6 +71,12 @@ curl → GET /orders/{circuitKey} → circuit-breaker:execute → GET /backend/o
 ## Scenarios
 
 Every command targets `circuitKey=demo` and can be repeated with a different value (e.g. `checkout`, `shipping`) to see independent circuits. `-i` shows the response status so you can see the mapping in `global.xml` in action.
+
+Run against `localhost:8081` here; the same commands run against the CloudHub 2.0 `test`
+deployment (see [Environments](#environments)) are how BRU-58 proves cross-replica shared state —
+watch the `X-Replica-Id` response header change between calls. That evidence, plus the Object
+Store latency comparison (`/orders/{key}` vs `/orders-bypass/{key}`), is saved in
+[`evidence/BRU-58/`](evidence/BRU-58/).
 
 **Closed circuit — calls pass through:**
 ```bash
@@ -94,6 +129,11 @@ MUnit stubs the single `http:request` call with `munit-tools:mock-when` rather t
 ## Limits
 
 The circuit's state lives in the plugin's own persistent Object Store, which is what lets state survive across CloudHub 2.0 replicas of the same deployment — not relevant to a single local instance, but worth knowing before reading too much into a single-instance demo: see [mule4-circuit-breaker's README](https://github.com/brunosouzas/mule4-circuit-breaker#limits-of-shared-state) for the documented limits of that mechanism (no cross-replica lock, no coordination on a circuit's very first write, added latency).
+
+Numbers measured against this specific deployment (2 replicas, 0.1 vCore, CloudHub 2.0) — Object
+Store latency and the first-concurrent-write reproducibility question — are in
+[`evidence/BRU-58/`](evidence/BRU-58/), and folded back into the plugin's own README as part of
+BRU-58's follow-up.
 
 ## Licence
 

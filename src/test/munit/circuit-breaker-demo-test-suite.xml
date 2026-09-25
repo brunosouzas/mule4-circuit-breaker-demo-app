@@ -371,4 +371,71 @@
 			<munit-tools:assert-that doc:name="Payload" expression="#[payload.error]" is="#[MunitTools::equalTo('backend_business_error')]" />
 		</munit:validation>
 	</munit:test>
+
+	<!-- BRU-58: get-health (required by the pipeline's post-deployment smoke test) and
+	     get-orders-bypass (the latency baseline, no circuit-breaker:execute at all). -->
+
+	<munit:test name="test-get-health" description="/health reports UP with the app name and current mule.env">
+		<munit:execution>
+			<flow-ref doc:name="Run" name="get-health" />
+		</munit:execution>
+		<munit:validation>
+			<munit-tools:assert-that doc:name="Status" expression="#[payload.status]" is="#[MunitTools::equalTo('UP')]" />
+			<munit-tools:assert-that doc:name="Application" expression="#[payload.application]" is="#[MunitTools::equalTo('mule4-circuit-breaker-demo-app')]" />
+		</munit:validation>
+	</munit:test>
+
+	<munit:test name="test-get-orders-bypass-ok" description="orders-bypass with a healthy backend returns the same payload as get-orders, without going through the circuit breaker">
+		<munit:behavior>
+			<munit-tools:mock-when doc:name="Mock healthy backend" processor="http:request">
+				<munit-tools:then-return>
+					<munit-tools:payload value="#[output application/json --- { orderId: 'ORD-DEMO', status: 'ACCEPTED' }]" mediaType="application/json" />
+				</munit-tools:then-return>
+			</munit-tools:mock-when>
+			<munit:set-event doc:name="ok call">
+				<munit:attributes value="#[{ uriParams: { circuitKey: 'bypass-ok-test' } }]" />
+			</munit:set-event>
+		</munit:behavior>
+		<munit:execution>
+			<flow-ref doc:name="Run" name="get-orders-bypass" />
+		</munit:execution>
+		<munit:validation>
+			<munit-tools:assert-that doc:name="Status" expression="#[payload.status]" is="#[MunitTools::equalTo('ACCEPTED')]" />
+			<munit-tools:assert-that doc:name="Replica id set" expression="#[vars.replicaId]" is="#[MunitTools::notNullValue()]" />
+		</munit:validation>
+	</munit:test>
+
+	<munit:test name="test-get-orders-bypass-does-not-open-circuit" description="Repeated failures through orders-bypass never touch circuit breaker state - a subsequent real call is still a fresh first attempt, not already blocked">
+		<munit:behavior>
+			<munit-tools:mock-when doc:name="Mock failing backend" processor="http:request">
+				<munit-tools:then-return>
+					<munit-tools:error typeId="HTTP:INTERNAL_SERVER_ERROR" />
+				</munit-tools:then-return>
+			</munit-tools:mock-when>
+		</munit:behavior>
+		<munit:execution>
+			<munit:set-event doc:name="Bypass failure 1">
+				<munit:attributes value="#[{ uriParams: { circuitKey: 'bypass-open-test' } }]" />
+			</munit:set-event>
+			<flow-ref doc:name="Run bypass" name="get-orders-bypass" />
+			<munit:set-event doc:name="Bypass failure 2">
+				<munit:attributes value="#[{ uriParams: { circuitKey: 'bypass-open-test' } }]" />
+			</munit:set-event>
+			<flow-ref doc:name="Run bypass" name="get-orders-bypass" />
+			<munit:set-event doc:name="Bypass failure 3">
+				<munit:attributes value="#[{ uriParams: { circuitKey: 'bypass-open-test' } }]" />
+			</munit:set-event>
+			<flow-ref doc:name="Run bypass" name="get-orders-bypass" />
+			<munit:set-event doc:name="First real circuit-breaker call, same key">
+				<munit:attributes value="#[{ uriParams: { circuitKey: 'bypass-open-test' } }]" />
+			</munit:set-event>
+			<flow-ref doc:name="Run through circuit breaker" name="get-orders" />
+		</munit:execution>
+		<munit:validation>
+			<!-- 502 (backend failure), not 503 (circuit_open): if the bypass calls had counted
+			     toward the window, minimumCalls=2 would already have been met and this first
+			     real circuit-breaker call would come back blocked instead. -->
+			<munit-tools:assert-that doc:name="Status" expression="#[vars.httpStatus as Number]" is="#[MunitTools::equalTo(502)]" />
+		</munit:validation>
+	</munit:test>
 </mule>

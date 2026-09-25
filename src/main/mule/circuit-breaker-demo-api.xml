@@ -16,9 +16,12 @@
 	     backend, so a caller controls the scenario without any server-side state. -->
 	<flow name="get-orders">
 		<http:listener doc:name="Listener" config-ref="http-listener-config" path="/orders/{circuitKey}" allowedMethods="GET">
-			<http:response statusCode="#[vars.httpStatus default 200]" />
+			<http:response statusCode="#[vars.httpStatus default 200]">
+				<http:headers><![CDATA[#[{ 'X-Replica-Id': vars.replicaId }]]]></http:headers>
+			</http:response>
 		</http:listener>
 		<set-variable doc:name="Circuit key" variableName="circuitKey" value="#[attributes.uriParams.circuitKey]" />
+		<flow-ref doc:name="Stamp replica id" name="stamp-replica-id" />
 		<flow-ref doc:name="Call backend via circuit breaker" name="call-backend-via-circuit-breaker" />
 	</flow>
 
@@ -37,4 +40,47 @@
 			</http:request>
 		</circuit-breaker:execute>
 	</sub-flow>
+
+	<!-- Latency baseline for BRU-58: same client contract and the exact same backend call as
+	     get-orders, but never wrapped in circuit-breaker:execute. Comparing response times between
+	     the two isolates the overhead the plugin's Object Store reads/writes add per call. -->
+	<flow name="get-orders-bypass">
+		<http:listener doc:name="Listener" config-ref="http-listener-config" path="/orders-bypass/{circuitKey}" allowedMethods="GET">
+			<http:response statusCode="#[vars.httpStatus default 200]">
+				<http:headers><![CDATA[#[{ 'X-Replica-Id': vars.replicaId }]]]></http:headers>
+			</http:response>
+		</http:listener>
+		<set-variable doc:name="Circuit key" variableName="circuitKey" value="#[attributes.uriParams.circuitKey]" />
+		<flow-ref doc:name="Stamp replica id" name="stamp-replica-id" />
+		<flow-ref doc:name="Call backend directly" name="call-backend-direct" />
+	</flow>
+
+	<sub-flow name="call-backend-direct">
+		<http:request doc:name="Call simulated backend" config-ref="backend-request-config" path="/backend/orders" method="GET" responseTimeout="1000">
+			<http:headers><![CDATA[#[{ 'X-Demo-Backend-Mode': (attributes.headers['x-demo-backend-mode'] default 'ok') }]]]></http:headers>
+		</http:request>
+	</sub-flow>
+
+	<!-- Required by the pipeline's post-deployment smoke test (templates/jobs/deploy.yml), which
+	     polls this URL expecting { status: "UP", environment: "<anypointEnvironment>" }. -->
+	<flow name="get-health">
+		<http:listener doc:name="Listener" config-ref="http-listener-config" path="/health" allowedMethods="GET">
+			<http:response statusCode="200">
+				<http:headers><![CDATA[#[{ 'X-Replica-Id': vars.replicaId }]]]></http:headers>
+			</http:response>
+		</http:listener>
+		<flow-ref doc:name="Stamp replica id" name="stamp-replica-id" />
+		<ee:transform doc:name="Health body">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	status: "UP",
+	application: p('app.name'),
+	environment: p('mule.env')
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
 </mule>
