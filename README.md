@@ -49,7 +49,7 @@ account's resources on environments this validation doesn't need.
 
 | Environment | Health check | Replicas |
 |---|---|---|
-| test | *filled in after the first pipeline deploy — see [`deployment/test.yaml`](deployment/test.yaml)* | 2 × 0.1 vCore |
+| test | [/health](https://mule4-circuit-breaker-demo-app-test-47xgd0.5sc6y6-4.usa-e2.cloudhub.io/health) | 2 × 0.1 vCore |
 
 Runs on an Anypoint Platform trial and may be stopped when the trial ends (24/10/2026) — the
 evidence in [`evidence/BRU-58/`](evidence/BRU-58/) does not depend on it staying up.
