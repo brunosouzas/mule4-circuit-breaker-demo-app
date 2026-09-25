@@ -32,7 +32,7 @@
 		<munit.version>3.7.1</munit.version>
 		<mule.http.connector.version>1.11.3</mule.http.connector.version>
 		<mule.scripting.module.version>2.1.1</mule.scripting.module.version>
-		<circuit.breaker.version>1.0.0-SNAPSHOT</circuit.breaker.version>
+		<circuit.breaker.version>1.1.0</circuit.breaker.version>
 	</properties>
 
 	<build>
@@ -107,7 +107,9 @@
 			<classifier>mule-plugin</classifier>
 		</dependency>
 		<dependency>
-			<groupId>com.brunosouzas.mule</groupId>
+			<!-- groupId is the Anypoint organization (business group) ID the plugin is published
+			     under on Exchange, not a Java package name - see mule4-circuit-breaker's own pom.xml. -->
+			<groupId>c17ce335-be76-4fd0-87e2-130837d2c65a</groupId>
 			<artifactId>mule4-circuit-breaker</artifactId>
 			<version>${circuit.breaker.version}</version>
 			<classifier>mule-plugin</classifier>
