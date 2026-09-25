@@ -27,16 +27,17 @@ curl → GET /orders/{circuitKey} → circuit-breaker:execute → GET /backend/o
 
 ## Running locally
 
-1. Install the plugin locally (only needed once, or whenever it changes):
-   ```bash
-   mvn -f ../mule4-circuit-breaker clean install
-   ```
-2. Package this app:
+1. Package this app:
    ```bash
    mvn clean package
    ```
+   `mule4-circuit-breaker` resolves from the Anypoint Exchange of the trial org
+   (`c17ce335-be76-4fd0-87e2-130837d2c65a`, see [pom.xml](pom.xml)) — no local `mvn install` of the
+   plugin repo needed. This requires an `anypoint-exchange-v3` server entry in `~/.m2/settings.xml`
+   with Exchange **read** access; a Connected App scoped only to publish (the one the plugin's own
+   release pipeline uses) can't resolve it and fails with a 404 "Asset file not found".
    This produces `target/mule4-circuit-breaker-demo-app-0.1.0-SNAPSHOT-mule-application.jar`.
-3. Deploy it to a Mule 4 standalone runtime you already have installed locally: copy that jar into `<MULE_HOME>/apps/` and start (or restart) the runtime — `bin/mule start` (or `bin/mule restart` if it's already running). The app listens on port `8081` by default (`src/main/resources/config/common.yaml`).
+2. Deploy it to a Mule 4 standalone runtime you already have installed locally: copy that jar into `<MULE_HOME>/apps/` and start (or restart) the runtime — `bin/mule start` (or `bin/mule restart` if it's already running). The app listens on port `8081` by default (`src/main/resources/config/common.yaml`).
 
 ## Scenarios
 
