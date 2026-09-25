@@ -8,10 +8,12 @@
 		http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
 		http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
 
-	<!-- No CloudHub environments here (out of scope for this repo) - "local" is the only live-run
-	     environment. MUnit overrides it to "test" via a system property (see pom.xml) to pick up
-	     small, fast circuit breaker values from config-test.yaml instead of the demo-friendly ones
-	     in common.yaml. -->
+	<!-- "local" is the default for a standalone runtime. MUnit overrides it to "test" via a system
+	     property (see pom.xml) to pick up small, fast circuit breaker values from config-test.yaml
+	     instead of the demo-friendly ones in common.yaml. On CloudHub 2.0, the pipeline's
+	     cloudhub2Deployment sets mule.env=test too (see pom.xml) - but there it also pins the
+	     demo-friendly cb.* properties directly, so the deployed app reproduces the README's
+	     documented scenarios rather than MUnit's fast tuning. -->
 	<global-property doc:name="Default environment" name="mule.env" value="local" />
 	<configuration-properties doc:name="Common" file="config/common.yaml" />
 	<configuration-properties doc:name="Environment" file="config/config-${mule.env}.yaml" />
@@ -28,6 +30,15 @@
 	</http:request-config>
 
 	<configuration doc:name="Configuration" defaultErrorHandler-ref="global-error-handler" />
+
+	<!-- Stamps every response with the identity of the replica that handled it. envVar() reads only
+	     OS environment variables (unlike p(), which also mixes in Mule property placeholders) -
+	     Kubernetes, which CloudHub 2.0 runs on, sets HOSTNAME to the pod name by default, giving a
+	     value that's unique per replica. Used to prove cross-replica shared state (BRU-58). -->
+	<sub-flow name="stamp-replica-id">
+		<set-variable doc:name="Replica id" variableName="replicaId" value="#[dw::System::envVar('HOSTNAME') default 'unknown']" />
+		<logger level="INFO" doc:name="Replica" message="#['replicaId=' ++ vars.replicaId ++ (if (vars.circuitKey?) ' circuitKey=' ++ vars.circuitKey else '')]" />
+	</sub-flow>
 
 	<error-handler name="global-error-handler">
 		<on-error-continue type="CIRCUIT-BREAKER:OPEN" logException="false">

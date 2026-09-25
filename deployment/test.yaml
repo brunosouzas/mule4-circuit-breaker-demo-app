@@ -1,0 +1,9 @@
+# CloudHub 2.0 settings for the test environment. Read by the pipeline (templates/jobs/deploy.yml).
+applicationName: mule4-circuit-breaker-demo-app-test
+target: Cloudhub-US-East-2
+runtimeVersion: 4.9.0
+replicas: 2
+vCores: 0.1
+# healthUrl intentionally omitted on the first deploy: CloudHub 2.0 assigns a random subdomain
+# suffix only known after the app first goes live (see templates/jobs/deploy.yml, which skips the
+# smoke test when this is empty). Add it here once the real URL is known from Runtime Manager.

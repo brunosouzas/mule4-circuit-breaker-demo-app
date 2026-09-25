@@ -2,7 +2,10 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>com.brunosouzas.mule</groupId>
+	<!-- groupId is the Anypoint organization (business group) ID, required to publish/deploy this
+	     app itself via Exchange - see mulesoft-orders-api's pom.xml and the mule4-circuit-breaker
+	     dependency below, which documents the same convention for its own groupId. -->
+	<groupId>c17ce335-be76-4fd0-87e2-130837d2c65a</groupId>
 	<artifactId>mule4-circuit-breaker-demo-app</artifactId>
 	<version>0.1.0-SNAPSHOT</version>
 	<packaging>mule-application</packaging>
@@ -25,6 +28,21 @@
 		<tag>HEAD</tag>
 	</scm>
 
+	<distributionManagement>
+		<repository>
+			<id>anypoint-exchange-v3</id>
+			<name>Anypoint Exchange</name>
+			<url>https://maven.anypoint.mulesoft.com/api/v3/organizations/${project.groupId}/maven</url>
+			<layout>default</layout>
+		</repository>
+		<snapshotRepository>
+			<id>anypoint-exchange-v3</id>
+			<name>Anypoint Exchange</name>
+			<url>https://maven.anypoint.mulesoft.com/api/v3/organizations/${project.groupId}/maven</url>
+			<layout>default</layout>
+		</snapshotRepository>
+	</distributionManagement>
+
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<app.runtime>4.9.17</app.runtime>
@@ -33,6 +51,17 @@
 		<mule.http.connector.version>1.11.3</mule.http.connector.version>
 		<mule.scripting.module.version>2.1.1</mule.scripting.module.version>
 		<circuit.breaker.version>1.1.0</circuit.breaker.version>
+		<maven.release.plugin.version>3.3.1</maven.release.plugin.version>
+		<!-- Deployment values are passed by the pipeline from deployment/<env>.yaml -->
+		<deploy.environment>test</deploy.environment>
+		<deploy.applicationName>${project.artifactId}-${deploy.environment}</deploy.applicationName>
+		<deploy.target>Cloudhub-US-East-2</deploy.target>
+		<deploy.runtimeVersion>4.9.0</deploy.runtimeVersion>
+		<deploy.releaseChannel>LTS</deploy.releaseChannel>
+		<deploy.replicas>1</deploy.replicas>
+		<deploy.vCores>0.1</deploy.vCores>
+		<deploy.clientId />
+		<deploy.clientSecret />
 	</properties>
 
 	<build>
@@ -49,6 +78,50 @@
 				<extensions>true</extensions>
 				<configuration>
 					<classifier>mule-application</classifier>
+					<cloudhub2Deployment>
+						<uri>https://anypoint.mulesoft.com</uri>
+						<provider>MC</provider>
+						<environment>${deploy.environment}</environment>
+						<target>${deploy.target}</target>
+						<muleVersion>${deploy.runtimeVersion}</muleVersion>
+						<releaseChannel>${deploy.releaseChannel}</releaseChannel>
+						<javaVersion>17</javaVersion>
+						<applicationName>${deploy.applicationName}</applicationName>
+						<replicas>${deploy.replicas}</replicas>
+						<vCores>${deploy.vCores}</vCores>
+						<connectedAppClientId>${deploy.clientId}</connectedAppClientId>
+						<connectedAppClientSecret>${deploy.clientSecret}</connectedAppClientSecret>
+						<connectedAppGrantType>client_credentials</connectedAppGrantType>
+						<properties>
+							<mule.env>${deploy.environment}</mule.env>
+							<!-- Pin the demo-friendly circuit breaker tuning (same values as
+							     common.yaml) so the CloudHub deployment reproduces the README's
+							     documented scenarios, instead of inheriting MUnit's fast test
+							     values through the coincidence that both environments are
+							     named "test". -->
+							<cb.windowSize>5</cb.windowSize>
+							<cb.minimumCalls>5</cb.minimumCalls>
+							<cb.failureRateThreshold>50</cb.failureRateThreshold>
+							<cb.resetTimeout>10000</cb.resetTimeout>
+							<cb.permittedCallsInHalfOpen>1</cb.permittedCallsInHalfOpen>
+							<cb.successThreshold>1</cb.successThreshold>
+						</properties>
+					</cloudhub2Deployment>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-release-plugin</artifactId>
+				<version>${maven.release.plugin.version}</version>
+				<configuration>
+					<!-- Inert for this issue: the release stage only runs off `main`, which
+					     BRU-58 never touches (deploy stays scoped to develop -> test). Present
+					     for parity with mulesoft-orders-api and future readiness. -->
+					<!-- [skip ci] stops the release commits from triggering the pipeline again. -->
+					<scmCommentPrefix>[skip ci] [maven-release-plugin] </scmCommentPrefix>
+					<tagNameFormat>v@{project.version}</tagNameFormat>
+					<goals>deploy</goals>
+					<pushChanges>true</pushChanges>
 				</configuration>
 			</plugin>
 			<plugin>
