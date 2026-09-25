@@ -1,0 +1,14 @@
+http:
+  host: "0.0.0.0"
+  port: "8081"
+
+# Demo-friendly circuit breaker tuning: a handful of curl calls is enough to open the circuit, and
+# the reset timeout is short enough to wait out by hand. config-test.yaml overrides these with
+# smaller, faster values for MUnit.
+cb:
+  windowSize: "5"
+  minimumCalls: "5"
+  failureRateThreshold: "50"
+  resetTimeout: "10000"
+  permittedCallsInHalfOpen: "1"
+  successThreshold: "1"

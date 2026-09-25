@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<groupId>com.brunosouzas.mule</groupId>
+	<artifactId>mule4-circuit-breaker-demo-app</artifactId>
+	<version>0.1.0-SNAPSHOT</version>
+	<packaging>mule-application</packaging>
+
+	<name>mule4-circuit-breaker-demo-app</name>
+	<description>Mule 4 application that consumes mule4-circuit-breaker against a controllable simulated backend, so every circuit breaker scenario can be triggered and checked inside a real Mule runtime.</description>
+	<url>https://github.com/brunosouzas/mule4-circuit-breaker-demo-app</url>
+
+	<licenses>
+		<license>
+			<name>MIT</name>
+			<url>https://opensource.org/licenses/MIT</url>
+		</license>
+	</licenses>
+
+	<scm>
+		<connection>scm:git:https://github.com/brunosouzas/mule4-circuit-breaker-demo-app.git</connection>
+		<developerConnection>scm:git:https://github.com/brunosouzas/mule4-circuit-breaker-demo-app.git</developerConnection>
+		<url>https://github.com/brunosouzas/mule4-circuit-breaker-demo-app</url>
+		<tag>HEAD</tag>
+	</scm>
+
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<app.runtime>4.9.17</app.runtime>
+		<mule.maven.plugin.version>4.9.1</mule.maven.plugin.version>
+		<munit.version>3.7.1</munit.version>
+		<mule.http.connector.version>1.11.3</mule.http.connector.version>
+		<mule.scripting.module.version>2.1.1</mule.scripting.module.version>
+		<circuit.breaker.version>1.0.0-SNAPSHOT</circuit.breaker.version>
+	</properties>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-clean-plugin</artifactId>
+				<version>3.4.0</version>
+			</plugin>
+			<plugin>
+				<groupId>org.mule.tools.maven</groupId>
+				<artifactId>mule-maven-plugin</artifactId>
+				<version>${mule.maven.plugin.version}</version>
+				<extensions>true</extensions>
+				<configuration>
+					<classifier>mule-application</classifier>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>com.mulesoft.munit.tools</groupId>
+				<artifactId>munit-maven-plugin</artifactId>
+				<version>${munit.version}</version>
+				<executions>
+					<execution>
+						<id>test</id>
+						<phase>test</phase>
+						<goals>
+							<goal>test</goal>
+							<goal>coverage-report</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<runtimeVersion>${app.runtime}</runtimeVersion>
+					<runtimeProduct>MULE_EE</runtimeProduct>
+					<systemPropertyVariables>
+						<mule.env>test</mule.env>
+						<cb.windowSize>2</cb.windowSize>
+						<cb.minimumCalls>2</cb.minimumCalls>
+						<cb.failureRateThreshold>50</cb.failureRateThreshold>
+						<cb.resetTimeout>500</cb.resetTimeout>
+						<cb.permittedCallsInHalfOpen>1</cb.permittedCallsInHalfOpen>
+						<cb.successThreshold>1</cb.successThreshold>
+					</systemPropertyVariables>
+					<dynamicPorts>
+						<dynamicPort>http.port</dynamicPort>
+					</dynamicPorts>
+					<coverage>
+						<runCoverage>true</runCoverage>
+						<failBuild>true</failBuild>
+						<requiredApplicationCoverage>80</requiredApplicationCoverage>
+						<formats>
+							<format>console</format>
+						</formats>
+					</coverage>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.mule.connectors</groupId>
+			<artifactId>mule-http-connector</artifactId>
+			<version>${mule.http.connector.version}</version>
+			<classifier>mule-plugin</classifier>
+		</dependency>
+		<dependency>
+			<groupId>org.mule.modules</groupId>
+			<artifactId>mule-scripting-module</artifactId>
+			<version>${mule.scripting.module.version}</version>
+			<classifier>mule-plugin</classifier>
+		</dependency>
+		<dependency>
+			<groupId>com.brunosouzas.mule</groupId>
+			<artifactId>mule4-circuit-breaker</artifactId>
+			<version>${circuit.breaker.version}</version>
+			<classifier>mule-plugin</classifier>
+		</dependency>
+		<dependency>
+			<groupId>com.mulesoft.munit</groupId>
+			<artifactId>munit-runner</artifactId>
+			<version>${munit.version}</version>
+			<classifier>mule-plugin</classifier>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.mulesoft.munit</groupId>
+			<artifactId>munit-tools</artifactId>
+			<version>${munit.version}</version>
+			<classifier>mule-plugin</classifier>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<repositories>
+		<repository>
+			<id>anypoint-exchange-v3</id>
+			<name>Anypoint Exchange</name>
+			<url>https://maven.anypoint.mulesoft.com/api/v3/maven</url>
+			<layout>default</layout>
+		</repository>
+		<repository>
+			<id>mulesoft-releases</id>
+			<name>MuleSoft Releases Repository</name>
+			<url>https://repository.mulesoft.org/releases/</url>
+			<layout>default</layout>
+		</repository>
+	</repositories>
+
+	<pluginRepositories>
+		<pluginRepository>
+			<id>mulesoft-releases</id>
+			<name>MuleSoft Releases Repository</name>
+			<url>https://repository.mulesoft.org/releases/</url>
+			<layout>default</layout>
+		</pluginRepository>
+	</pluginRepositories>
+</project>

@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+		http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+		http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+	<!-- No CloudHub environments here (out of scope for this repo) - "local" is the only live-run
+	     environment. MUnit overrides it to "test" via a system property (see pom.xml) to pick up
+	     small, fast circuit breaker values from config-test.yaml instead of the demo-friendly ones
+	     in common.yaml. -->
+	<global-property doc:name="Default environment" name="mule.env" value="local" />
+	<configuration-properties doc:name="Common" file="config/common.yaml" />
+	<configuration-properties doc:name="Environment" file="config/config-${mule.env}.yaml" />
+
+	<http:listener-config name="http-listener-config" doc:name="HTTP listener">
+		<http:listener-connection host="${http.host}" port="${http.port}" />
+	</http:listener-config>
+
+	<!-- The simulated backend lives in this same app, on the same listener, so this points back at
+	     localhost on the app's own port. The response timeout that turns the "slow" backend mode into
+	     a real HTTP:TIMEOUT is set per-call, on the http:request operation itself. -->
+	<http:request-config name="backend-request-config" doc:name="Backend simulator">
+		<http:request-connection host="localhost" port="${http.port}" />
+	</http:request-config>
+
+	<configuration doc:name="Configuration" defaultErrorHandler-ref="global-error-handler" />
+
+	<error-handler name="global-error-handler">
+		<on-error-continue type="CIRCUIT-BREAKER:OPEN" logException="false">
+			<set-variable variableName="httpStatus" value="503" />
+			<ee:transform doc:name="Circuit open body">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	error: "circuit_open",
+	circuitBreakerKey: vars.circuitKey,
+	description: error.description
+}]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+		</on-error-continue>
+		<on-error-continue type="HTTP:BAD_REQUEST" logException="false">
+			<set-variable variableName="httpStatus" value="400" />
+			<ee:transform doc:name="Backend business error body">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	error: "backend_business_error",
+	circuitBreakerKey: vars.circuitKey,
+	description: error.description
+}]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+		</on-error-continue>
+		<on-error-continue type="HTTP:TIMEOUT, HTTP:CONNECTIVITY, HTTP:INTERNAL_SERVER_ERROR" logException="false">
+			<set-variable variableName="httpStatus" value="502" />
+			<ee:transform doc:name="Backend failure body">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	error: "backend_failure",
+	circuitBreakerKey: vars.circuitKey,
+	description: error.description
+}]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+		</on-error-continue>
+	</error-handler>
+</mule>

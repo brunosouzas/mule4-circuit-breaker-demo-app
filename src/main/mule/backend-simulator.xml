@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+		http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+		http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+		http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd">
+
+	<!-- Simulated backend, controlled per request by the X-Demo-Backend-Mode header (default "ok"). No
+	     server-side state: "recovering" is simply the caller sending a later request with a different
+	     header value. Modes: ok (200), always_fail (500), business_error (400, a 4xx that a circuit
+	     breaker should never count as an infrastructure failure), slow (sleeps past the client's
+	     configured responseTimeout, producing HTTP:TIMEOUT on the caller side). -->
+	<flow name="backend-orders">
+		<http:listener doc:name="Listener" config-ref="http-listener-config" path="/backend/orders" allowedMethods="GET">
+			<http:response statusCode="#[vars.httpStatus default 200]" />
+		</http:listener>
+		<set-variable doc:name="Read mode" variableName="backendMode" value="#[(attributes.headers['x-demo-backend-mode'] default 'ok')]" />
+		<choice doc:name="Mode?">
+			<when expression="#[vars.backendMode == 'always_fail']">
+				<set-variable doc:name="500" variableName="httpStatus" value="500" />
+				<ee:transform doc:name="Failure body">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ error: "simulated backend failure" }]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<when expression="#[vars.backendMode == 'business_error']">
+				<set-variable doc:name="400" variableName="httpStatus" value="400" />
+				<ee:transform doc:name="Business error body">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ error: "invalid order request" }]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<when expression="#[vars.backendMode == 'slow']">
+				<scripting:execute doc:name="Simulate slow backend" engine="groovy">
+					<scripting:code><![CDATA[Thread.sleep(2000)]]></scripting:code>
+				</scripting:execute>
+				<ee:transform doc:name="Success body (after the delay)">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ orderId: "ORD-DEMO", status: "ACCEPTED" }]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Success body">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ orderId: "ORD-DEMO", status: "ACCEPTED" }]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+</mule>
