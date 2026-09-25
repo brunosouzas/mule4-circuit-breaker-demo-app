@@ -1,0 +1,9 @@
+# Small, fast circuit breaker values so MUnit stays deterministic and quick: two calls fill the
+# window, a 500ms resetTimeout is short enough for a test to wait past with munit-tools:sleep.
+cb:
+  windowSize: "2"
+  minimumCalls: "2"
+  failureRateThreshold: "50"
+  resetTimeout: "500"
+  permittedCallsInHalfOpen: "1"
+  successThreshold: "1"

@@ -1,0 +1,374 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:munit="http://www.mulesoft.org/schema/mule/munit"
+	xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+		http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+		http://www.mulesoft.org/schema/mule/munit-tools http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd">
+
+	<munit:config name="circuit-breaker-demo-test-suite.xml" />
+
+	<!--
+		The circuit-breaker scenarios (test-closed-circuit-calls-pass through test-independent-keys) each
+		flow-ref call-backend-via-circuit-breaker (circuit-breaker-demo-api.xml) directly and stub the
+		single http:request call in it with munit-tools:mock-when, instead of relying on a real
+		backend-orders listener - MUnit doesn't start message sources by default, and this app has no
+		reason to fight that default just to test the circuit breaker's own behaviour. A mock-when
+		re-registered mid-test changes what the next call(s) get, which is how the half-open and
+		independent-key tests switch the simulated backend from failing to healthy partway through. The
+		circuit breaker's window/reset tuning comes from the cb.* system properties set in pom.xml's
+		munit-maven-plugin configuration (windowSize=2, minimumCalls=2, resetTimeout=500ms), overriding
+		common.yaml's demo-friendly values just for this test run, so two calls fill the window and a test
+		can wait out the reset with munit-tools:sleep. Each test uses its own circuitBreakerKey so runs
+		never interfere with each other.
+
+		The backend-simulator tests below (test-backend-*) flow-ref backend-orders directly, with no mock,
+		to cover its own mode-switching branches - these are never exercised by the mocked tests above. The
+		real end-to-end HTTP round trip (listener calling listener, over the app's own port) is exercised by
+		running the app live - see README "Cenários".
+	-->
+
+	<munit:test name="test-closed-circuit-calls-pass" description="Closed circuit: a call with a healthy backend passes through">
+		<munit:behavior>
+			<munit-tools:mock-when doc:name="Mock healthy backend" processor="http:request">
+				<munit-tools:then-return>
+					<munit-tools:payload value="#[output application/json --- { orderId: 'ORD-DEMO', status: 'ACCEPTED' }]" mediaType="application/json" />
+				</munit-tools:then-return>
+			</munit-tools:mock-when>
+			<munit:set-event doc:name="ok call">
+				<munit:variables>
+					<munit:variable key="circuitKey" value="#['closed-test']" />
+				</munit:variables>
+			</munit:set-event>
+		</munit:behavior>
+		<munit:execution>
+			<flow-ref doc:name="Run" name="call-backend-via-circuit-breaker" />
+		</munit:execution>
+		<munit:validation>
+			<munit-tools:assert-that doc:name="Status" expression="#[payload.status]" is="#[MunitTools::equalTo('ACCEPTED')]" />
+		</munit:validation>
+	</munit:test>
+
+	<munit:test name="test-opens-on-failure-rate"
+		description="Enough always_fail calls in the window open the circuit; the next call is blocked with CIRCUIT-BREAKER:OPEN"
+		expectedErrorType="CIRCUIT-BREAKER:OPEN">
+		<munit:behavior>
+			<munit-tools:mock-when doc:name="Mock failing backend" processor="http:request">
+				<munit-tools:then-return>
+					<munit-tools:error typeId="HTTP:INTERNAL_SERVER_ERROR" />
+				</munit-tools:then-return>
+			</munit-tools:mock-when>
+		</munit:behavior>
+		<munit:execution>
+			<try doc:name="Failure 1 (ignored, fills the window)">
+				<munit:set-event doc:name="always_fail call 1">
+					<munit:variables>
+						<munit:variable key="circuitKey" value="#['opens-test']" />
+					</munit:variables>
+				</munit:set-event>
+				<flow-ref doc:name="Run" name="call-backend-via-circuit-breaker" />
+				<error-handler>
+					<on-error-continue type="HTTP:INTERNAL_SERVER_ERROR" />
+				</error-handler>
+			</try>
+			<try doc:name="Failure 2 (ignored, opens the circuit)">
+				<munit:set-event doc:name="always_fail call 2">
+					<munit:variables>
+						<munit:variable key="circuitKey" value="#['opens-test']" />
+					</munit:variables>
+				</munit:set-event>
+				<flow-ref doc:name="Run" name="call-backend-via-circuit-breaker" />
+				<error-handler>
+					<on-error-continue type="HTTP:INTERNAL_SERVER_ERROR" />
+				</error-handler>
+			</try>
+			<munit:set-event doc:name="Blocked call">
+				<munit:variables>
+					<munit:variable key="circuitKey" value="#['opens-test']" />
+				</munit:variables>
+			</munit:set-event>
+			<flow-ref doc:name="Run (should be blocked)" name="call-backend-via-circuit-breaker" />
+		</munit:execution>
+	</munit:test>
+
+	<munit:test name="test-business-error-does-not-open-circuit"
+		description="A 4xx business error never counts as a circuit failure, no matter how many times it repeats"
+		expectedErrorType="HTTP:BAD_REQUEST">
+		<munit:behavior>
+			<munit-tools:mock-when doc:name="Mock business error" processor="http:request">
+				<munit-tools:then-return>
+					<munit-tools:error typeId="HTTP:BAD_REQUEST" />
+				</munit-tools:then-return>
+			</munit-tools:mock-when>
+		</munit:behavior>
+		<munit:execution>
+			<try doc:name="Business error 1 (ignored)">
+				<munit:set-event doc:name="business_error call 1">
+					<munit:variables>
+						<munit:variable key="circuitKey" value="#['business-test']" />
+					</munit:variables>
+				</munit:set-event>
+				<flow-ref doc:name="Run" name="call-backend-via-circuit-breaker" />
+				<error-handler>
+					<on-error-continue type="HTTP:BAD_REQUEST" />
+				</error-handler>
+			</try>
+			<try doc:name="Business error 2 (ignored)">
+				<munit:set-event doc:name="business_error call 2">
+					<munit:variables>
+						<munit:variable key="circuitKey" value="#['business-test']" />
+					</munit:variables>
+				</munit:set-event>
+				<flow-ref doc:name="Run" name="call-backend-via-circuit-breaker" />
+				<error-handler>
+					<on-error-continue type="HTTP:BAD_REQUEST" />
+				</error-handler>
+			</try>
+			<try doc:name="Business error 3 (ignored)">
+				<munit:set-event doc:name="business_error call 3">
+					<munit:variables>
+						<munit:variable key="circuitKey" value="#['business-test']" />
+					</munit:variables>
+				</munit:set-event>
+				<flow-ref doc:name="Run" name="call-backend-via-circuit-breaker" />
+				<error-handler>
+					<on-error-continue type="HTTP:BAD_REQUEST" />
+				</error-handler>
+			</try>
+			<munit:set-event doc:name="Still not blocked">
+				<munit:variables>
+					<munit:variable key="circuitKey" value="#['business-test']" />
+				</munit:variables>
+			</munit:set-event>
+			<flow-ref doc:name="Run (still HTTP:BAD_REQUEST, not blocked)" name="call-backend-via-circuit-breaker" />
+		</munit:execution>
+	</munit:test>
+
+	<munit:test name="test-half-open-closes-after-reset"
+		description="After opening, the circuit blocks calls until resetTimeout elapses, then a successful HALF_OPEN probe closes it again">
+		<munit:behavior>
+			<munit-tools:mock-when doc:name="Mock failing backend" processor="http:request">
+				<munit-tools:then-return>
+					<munit-tools:error typeId="HTTP:INTERNAL_SERVER_ERROR" />
+				</munit-tools:then-return>
+			</munit-tools:mock-when>
+		</munit:behavior>
+		<munit:execution>
+			<try doc:name="Failure 1 (ignored, fills the window)">
+				<munit:set-event doc:name="always_fail call 1">
+					<munit:variables>
+						<munit:variable key="circuitKey" value="#['recover-test']" />
+					</munit:variables>
+				</munit:set-event>
+				<flow-ref doc:name="Run" name="call-backend-via-circuit-breaker" />
+				<error-handler>
+					<on-error-continue type="HTTP:INTERNAL_SERVER_ERROR" />
+				</error-handler>
+			</try>
+			<try doc:name="Failure 2 (ignored, opens the circuit)">
+				<munit:set-event doc:name="always_fail call 2">
+					<munit:variables>
+						<munit:variable key="circuitKey" value="#['recover-test']" />
+					</munit:variables>
+				</munit:set-event>
+				<flow-ref doc:name="Run" name="call-backend-via-circuit-breaker" />
+				<error-handler>
+					<on-error-continue type="HTTP:INTERNAL_SERVER_ERROR" />
+				</error-handler>
+			</try>
+			<try doc:name="Blocked while open">
+				<munit:set-event doc:name="Blocked call">
+					<munit:variables>
+						<munit:variable key="circuitKey" value="#['recover-test']" />
+					</munit:variables>
+				</munit:set-event>
+				<flow-ref doc:name="Run" name="call-backend-via-circuit-breaker" />
+				<error-handler>
+					<on-error-continue type="CIRCUIT-BREAKER:OPEN">
+						<set-variable doc:name="Record blocked" variableName="blockedWhileOpen" value="#[true]" />
+					</on-error-continue>
+				</error-handler>
+			</try>
+			<munit-tools:sleep doc:name="Wait past resetTimeout" time="600" timeUnit="MILLISECONDS" />
+			<munit-tools:mock-when doc:name="Backend recovered" processor="http:request">
+				<munit-tools:then-return>
+					<munit-tools:payload value="#[output application/json --- { orderId: 'ORD-DEMO', status: 'ACCEPTED' }]" mediaType="application/json" />
+				</munit-tools:then-return>
+			</munit-tools:mock-when>
+			<munit:set-event doc:name="Recovered backend, HALF_OPEN probe">
+				<munit:variables>
+					<munit:variable key="circuitKey" value="#['recover-test']" />
+					<munit:variable key="blockedWhileOpen" value="#[vars.blockedWhileOpen]" />
+				</munit:variables>
+			</munit:set-event>
+			<flow-ref doc:name="Run (should recover)" name="call-backend-via-circuit-breaker" />
+		</munit:execution>
+		<munit:validation>
+			<munit-tools:assert-that doc:name="Was blocked while open" expression="#[vars.blockedWhileOpen]" is="#[MunitTools::equalTo(true)]" />
+			<munit-tools:assert-that doc:name="Recovered status" expression="#[payload.status]" is="#[MunitTools::equalTo('ACCEPTED')]" />
+		</munit:validation>
+	</munit:test>
+
+	<munit:test name="test-independent-keys" description="Two different circuitKeys stay independent: opening one never affects the other">
+		<munit:behavior>
+			<munit-tools:mock-when doc:name="Mock failing backend" processor="http:request">
+				<munit-tools:then-return>
+					<munit-tools:error typeId="HTTP:INTERNAL_SERVER_ERROR" />
+				</munit-tools:then-return>
+			</munit-tools:mock-when>
+		</munit:behavior>
+		<munit:execution>
+			<try doc:name="checkout failure 1 (ignored)">
+				<munit:set-event doc:name="always_fail call 1">
+					<munit:variables>
+						<munit:variable key="circuitKey" value="#['checkout-test']" />
+					</munit:variables>
+				</munit:set-event>
+				<flow-ref doc:name="Run" name="call-backend-via-circuit-breaker" />
+				<error-handler>
+					<on-error-continue type="HTTP:INTERNAL_SERVER_ERROR" />
+				</error-handler>
+			</try>
+			<try doc:name="checkout failure 2 (ignored, opens checkout)">
+				<munit:set-event doc:name="always_fail call 2">
+					<munit:variables>
+						<munit:variable key="circuitKey" value="#['checkout-test']" />
+					</munit:variables>
+				</munit:set-event>
+				<flow-ref doc:name="Run" name="call-backend-via-circuit-breaker" />
+				<error-handler>
+					<on-error-continue type="HTTP:INTERNAL_SERVER_ERROR" />
+				</error-handler>
+			</try>
+			<try doc:name="checkout is now blocked">
+				<munit:set-event doc:name="Blocked call">
+					<munit:variables>
+						<munit:variable key="circuitKey" value="#['checkout-test']" />
+					</munit:variables>
+				</munit:set-event>
+				<flow-ref doc:name="Run" name="call-backend-via-circuit-breaker" />
+				<error-handler>
+					<on-error-continue type="CIRCUIT-BREAKER:OPEN">
+						<set-variable doc:name="Record blocked" variableName="checkoutBlocked" value="#[true]" />
+					</on-error-continue>
+				</error-handler>
+			</try>
+			<munit-tools:mock-when doc:name="Healthy backend" processor="http:request">
+				<munit-tools:then-return>
+					<munit-tools:payload value="#[output application/json --- { orderId: 'ORD-DEMO', status: 'ACCEPTED' }]" mediaType="application/json" />
+				</munit-tools:then-return>
+			</munit-tools:mock-when>
+			<munit:set-event doc:name="shipping still works">
+				<munit:variables>
+					<munit:variable key="circuitKey" value="#['shipping-test']" />
+					<munit:variable key="checkoutBlocked" value="#[vars.checkoutBlocked]" />
+				</munit:variables>
+			</munit:set-event>
+			<flow-ref doc:name="Run" name="call-backend-via-circuit-breaker" />
+		</munit:execution>
+		<munit:validation>
+			<munit-tools:assert-that doc:name="checkout was blocked" expression="#[vars.checkoutBlocked]" is="#[MunitTools::equalTo(true)]" />
+			<munit-tools:assert-that doc:name="shipping payload" expression="#[payload.status]" is="#[MunitTools::equalTo('ACCEPTED')]" />
+		</munit:validation>
+	</munit:test>
+
+	<munit:test name="test-backend-ok" description="backend-orders with no mode header (or ok) returns an accepted order">
+		<munit:execution>
+			<munit:set-event doc:name="No mode header">
+				<munit:attributes value="#[{ headers: {} }]" />
+			</munit:set-event>
+			<flow-ref doc:name="Run" name="backend-orders" />
+		</munit:execution>
+		<munit:validation>
+			<munit-tools:assert-that doc:name="Payload" expression="#[payload.status]" is="#[MunitTools::equalTo('ACCEPTED')]" />
+		</munit:validation>
+	</munit:test>
+
+	<munit:test name="test-backend-always-fail" description="backend-orders with always_fail returns 500">
+		<munit:execution>
+			<munit:set-event doc:name="always_fail header">
+				<munit:attributes value="#[{ headers: { 'x-demo-backend-mode': 'always_fail' } }]" />
+			</munit:set-event>
+			<flow-ref doc:name="Run" name="backend-orders" />
+		</munit:execution>
+		<munit:validation>
+			<munit-tools:assert-that doc:name="Status" expression="#[vars.httpStatus as Number]" is="#[MunitTools::equalTo(500)]" />
+			<munit-tools:assert-that doc:name="Payload" expression="#[payload.error]" is="#[MunitTools::equalTo('simulated backend failure')]" />
+		</munit:validation>
+	</munit:test>
+
+	<munit:test name="test-backend-business-error" description="backend-orders with business_error returns 400">
+		<munit:execution>
+			<munit:set-event doc:name="business_error header">
+				<munit:attributes value="#[{ headers: { 'x-demo-backend-mode': 'business_error' } }]" />
+			</munit:set-event>
+			<flow-ref doc:name="Run" name="backend-orders" />
+		</munit:execution>
+		<munit:validation>
+			<munit-tools:assert-that doc:name="Status" expression="#[vars.httpStatus as Number]" is="#[MunitTools::equalTo(400)]" />
+			<munit-tools:assert-that doc:name="Payload" expression="#[payload.error]" is="#[MunitTools::equalTo('invalid order request')]" />
+		</munit:validation>
+	</munit:test>
+
+	<!-- No MUnit test for the "slow" mode: its Thread.sleep runs through mule-scripting-module's Groovy
+	     engine, which MUnit's embedded test runtime does not register ("Scripting engine 'groovy' not
+	     found" - a MUnit-environment gap, not a flow bug). Covered instead by the live run - see README
+	     "Cenários". -->
+
+	<!-- get-orders is the real client entry point (circuit-breaker-demo-api.xml): flow-ref bypasses only
+	     its http:listener source, same as MUnit does for any flow (see orders-api's own test-health, which
+	     flow-refs a flow starting with http:listener the same way) - the flow's own processors, and the
+	     app-wide global-error-handler, still run. These two tests are what actually prove the
+	     CIRCUIT-BREAKER:OPEN -> 503 and HTTP:BAD_REQUEST -> 400 mappings in global.xml work, which none of
+	     the tests above (all scoped to the inner sub-flow) exercise. -->
+
+	<munit:test name="test-get-orders-maps-circuit-open-to-503" description="global-error-handler maps CIRCUIT-BREAKER:OPEN to HTTP 503">
+		<munit:behavior>
+			<munit-tools:mock-when doc:name="Mock failing backend" processor="http:request">
+				<munit-tools:then-return>
+					<munit-tools:error typeId="HTTP:INTERNAL_SERVER_ERROR" />
+				</munit-tools:then-return>
+			</munit-tools:mock-when>
+		</munit:behavior>
+		<munit:execution>
+			<munit:set-event doc:name="Failure 1">
+				<munit:attributes value="#[{ uriParams: { circuitKey: 'api-test' } }]" />
+			</munit:set-event>
+			<flow-ref doc:name="Run" name="get-orders" />
+			<munit:set-event doc:name="Failure 2 (opens the circuit)">
+				<munit:attributes value="#[{ uriParams: { circuitKey: 'api-test' } }]" />
+			</munit:set-event>
+			<flow-ref doc:name="Run" name="get-orders" />
+			<munit:set-event doc:name="Blocked call">
+				<munit:attributes value="#[{ uriParams: { circuitKey: 'api-test' } }]" />
+			</munit:set-event>
+			<flow-ref doc:name="Run" name="get-orders" />
+		</munit:execution>
+		<munit:validation>
+			<munit-tools:assert-that doc:name="Status" expression="#[vars.httpStatus as Number]" is="#[MunitTools::equalTo(503)]" />
+			<munit-tools:assert-that doc:name="Payload" expression="#[payload.error]" is="#[MunitTools::equalTo('circuit_open')]" />
+		</munit:validation>
+	</munit:test>
+
+	<munit:test name="test-get-orders-maps-business-error-to-400" description="global-error-handler maps the backend's HTTP:BAD_REQUEST to HTTP 400">
+		<munit:behavior>
+			<munit-tools:mock-when doc:name="Mock business error backend" processor="http:request">
+				<munit-tools:then-return>
+					<munit-tools:error typeId="HTTP:BAD_REQUEST" />
+				</munit-tools:then-return>
+			</munit-tools:mock-when>
+			<munit:set-event doc:name="Business error call">
+				<munit:attributes value="#[{ uriParams: { circuitKey: 'api-business-test' } }]" />
+			</munit:set-event>
+		</munit:behavior>
+		<munit:execution>
+			<flow-ref doc:name="Run" name="get-orders" />
+		</munit:execution>
+		<munit:validation>
+			<munit-tools:assert-that doc:name="Status" expression="#[vars.httpStatus as Number]" is="#[MunitTools::equalTo(400)]" />
+			<munit-tools:assert-that doc:name="Payload" expression="#[payload.error]" is="#[MunitTools::equalTo('backend_business_error')]" />
+		</munit:validation>
+	</munit:test>
+</mule>

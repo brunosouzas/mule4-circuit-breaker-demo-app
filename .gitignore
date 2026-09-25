@@ -1,0 +1,8 @@
+target/
+.mule/
+.settings/
+.classpath
+.project
+.DS_Store
+.idea/
+*.iml
