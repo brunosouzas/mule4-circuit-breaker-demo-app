@@ -56,7 +56,9 @@
 		<deploy.environment>test</deploy.environment>
 		<deploy.applicationName>${project.artifactId}-${deploy.environment}</deploy.applicationName>
 		<deploy.target>Cloudhub-US-East-2</deploy.target>
-		<deploy.runtimeVersion>4.9.0</deploy.runtimeVersion>
+		<!-- 4.9.1, not 4.9.0: mule4-circuit-breaker is built against Mule 4.9.1, and CloudHub 2.0
+		     refuses to deploy it on an older runtime (confirmed by a real deploy failure). -->
+		<deploy.runtimeVersion>4.9.1</deploy.runtimeVersion>
 		<deploy.releaseChannel>LTS</deploy.releaseChannel>
 		<deploy.replicas>1</deploy.replicas>
 		<deploy.vCores>0.1</deploy.vCores>

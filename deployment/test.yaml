@@ -1,7 +1,9 @@
 # CloudHub 2.0 settings for the test environment. Read by the pipeline (templates/jobs/deploy.yml).
 applicationName: mule4-circuit-breaker-demo-app-test
 target: Cloudhub-US-East-2
-runtimeVersion: 4.9.0
+# 4.9.1, not 4.9.0: mule4-circuit-breaker is built against Mule 4.9.1 (its own pom.xml's
+# mule.version) and CloudHub 2.0 refuses to deploy it on an older runtime.
+runtimeVersion: 4.9.1
 replicas: 2
 vCores: 0.1
 # healthUrl intentionally omitted on the first deploy: CloudHub 2.0 assigns a random subdomain
