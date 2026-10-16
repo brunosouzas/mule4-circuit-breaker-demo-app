@@ -21,7 +21,7 @@ matches the README exactly, never 503.
 `cross-replica-proof.md` for why the exact call count to open varies with replica interleaving),
 then one `ok` call on an unrelated `shipping` key: **200**, unaffected. Matches the README's claim
 that different keys never share state (in contrast to same-key calls, which do — the whole point of
-this issue).
+this validation).
 
 ## Slow backend — not reproducible on this deployment
 
@@ -42,4 +42,4 @@ the circuit breaker's own behaviour (the call still fails and still counts towar
 faster than documented, from a different error path than the one that reaches `HTTP:TIMEOUT`).
 Flagged here for the record; fixing it (bundling/confirming the Groovy engine for CloudHub 2.0, or
 replacing the sleep with a mechanism that doesn't depend on it) is follow-up work, not part of
-BRU-58's acceptance criteria.
+this validation's acceptance criteria.

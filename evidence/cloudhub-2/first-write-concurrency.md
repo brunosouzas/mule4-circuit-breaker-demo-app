@@ -1,6 +1,6 @@
 # First-concurrent-write reproducibility
 
-The issue's open question: is the plugin's documented "no coordination on a circuit's very first
+The validation's open question: is the plugin's documented "no coordination on a circuit's very first
 write, ever" limit reproducible from outside, via near-simultaneous requests to a brand-new
 `circuitKey`? Short answer: **not conclusively from plain HTTP** — but a real, repeatable anomaly
 was observed that is consistent with it.

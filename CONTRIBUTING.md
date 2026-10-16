@@ -12,7 +12,7 @@ This repository follows GitFlow. The pipeline decides what happens from the bran
 
 After a release or hotfix reaches `main`, open a PR `main → develop` so `develop` receives the fix and the version bump.
 
-As of BRU-58, this repository has only ever exercised `feature → develop → test`. The `release`/`uat`/`prod` path is wired (same shared template as [mulesoft-orders-api](https://github.com/brunosouzas/mulesoft-orders-api)) but deliberately unused so far — see the README's "Delivery flow" section.
+Up to the CloudHub 2.0 validation (evidence in [`evidence/cloudhub-2/`](evidence/cloudhub-2/)), this repository has only ever exercised `feature → develop → test`. The `release`/`uat`/`prod` path is wired (same shared template as [mulesoft-orders-api](https://github.com/brunosouzas/mulesoft-orders-api)) but deliberately unused so far — see the README's "Delivery flow" section.
 
 ## Versions
 

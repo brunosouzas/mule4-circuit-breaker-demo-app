@@ -40,9 +40,9 @@ feature/* ──PR──▶ develop ──▶ SNAPSHOT to Exchange ──▶ tes
 This repo follows the same GitFlow/Azure Pipelines pattern as
 [mulesoft-orders-api](https://github.com/brunosouzas/mulesoft-orders-api) — see
 [`azure-pipelines.yml`](azure-pipelines.yml), [`deployment/test.yaml`](deployment/test.yaml) and
-[CONTRIBUTING.md](CONTRIBUTING.md). **BRU-58 only exercises `develop` → `test`.** `main` (Maven
-release, `uat`, `prod`) is deliberately out of scope for this issue — production environments are
-excluded by design, and `uat`/`prod` are left for a future issue rather than spending the trial
+[CONTRIBUTING.md](CONTRIBUTING.md). **The CloudHub 2.0 validation only exercises `develop` → `test`.** `main` (Maven
+release, `uat`, `prod`) is deliberately out of scope for that validation — production environments are
+excluded by design, and `uat`/`prod` are left for later work rather than spending the trial
 account's resources on environments this validation doesn't need.
 
 ## Environments
@@ -52,7 +52,7 @@ account's resources on environments this validation doesn't need.
 | test | [/health](https://mule4-circuit-breaker-demo-app-test-47xgd0.5sc6y6-4.usa-e2.cloudhub.io/health) | 2 × 0.1 vCore |
 
 Runs on an Anypoint Platform trial and may be stopped when the trial ends (24/10/2026) — the
-evidence in [`evidence/BRU-58/`](evidence/BRU-58/) does not depend on it staying up.
+evidence in [`evidence/cloudhub-2/`](evidence/cloudhub-2/) does not depend on it staying up.
 
 ## Running locally
 
@@ -73,10 +73,10 @@ evidence in [`evidence/BRU-58/`](evidence/BRU-58/) does not depend on it staying
 Every command targets `circuitKey=demo` and can be repeated with a different value (e.g. `checkout`, `shipping`) to see independent circuits. `-i` shows the response status so you can see the mapping in `global.xml` in action.
 
 Run against `localhost:8081` here; the same commands run against the CloudHub 2.0 `test`
-deployment (see [Environments](#environments)) are how BRU-58 proves cross-replica shared state —
+deployment (see [Environments](#environments)) are how the CloudHub 2.0 validation proves cross-replica shared state —
 watch the `X-Replica-Id` response header change between calls. That evidence, plus the Object
 Store latency comparison (`/orders/{key}` vs `/orders-bypass/{key}`), is saved in
-[`evidence/BRU-58/`](evidence/BRU-58/).
+[`evidence/cloudhub-2/`](evidence/cloudhub-2/).
 
 **Closed circuit — calls pass through:**
 ```bash
@@ -132,8 +132,8 @@ The circuit's state lives in the plugin's own persistent Object Store, which is 
 
 Numbers measured against this specific deployment (2 replicas, 0.1 vCore, CloudHub 2.0) — Object
 Store latency and the first-concurrent-write reproducibility question — are in
-[`evidence/BRU-58/`](evidence/BRU-58/), and folded back into the plugin's own README as part of
-BRU-58's follow-up.
+[`evidence/cloudhub-2/`](evidence/cloudhub-2/), and folded back into the plugin's own README as part of
+the validation's follow-up.
 
 ## Licence
 

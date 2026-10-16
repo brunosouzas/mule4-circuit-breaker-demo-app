@@ -41,9 +41,9 @@
 		</circuit-breaker:execute>
 	</sub-flow>
 
-	<!-- Latency baseline for BRU-58: same client contract and the exact same backend call as
-	     get-orders, but never wrapped in circuit-breaker:execute. Comparing response times between
-	     the two isolates the overhead the plugin's Object Store reads/writes add per call. -->
+	<!-- Latency baseline for the CloudHub 2.0 validation (evidence/cloudhub-2/): same client
+	     contract and the exact same backend call as get-orders, but never wrapped in
+	     circuit-breaker:execute. Comparing response times between the two isolates the overhead the plugin's Object Store reads/writes add per call. -->
 	<flow name="get-orders-bypass">
 		<http:listener doc:name="Listener" config-ref="http-listener-config" path="/orders-bypass/{circuitKey}" allowedMethods="GET">
 			<http:response statusCode="#[vars.httpStatus default 200]">

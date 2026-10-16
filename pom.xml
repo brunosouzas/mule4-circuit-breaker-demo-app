@@ -116,8 +116,8 @@
 				<artifactId>maven-release-plugin</artifactId>
 				<version>${maven.release.plugin.version}</version>
 				<configuration>
-					<!-- Inert for this issue: the release stage only runs off `main`, which
-					     BRU-58 never touches (deploy stays scoped to develop -> test). Present
+					<!-- Inert so far: the release stage only runs off `main`, which the
+					     CloudHub 2.0 validation never touched (deploy stayed scoped to develop -> test). Present
 					     for parity with mulesoft-orders-api and future readiness. -->
 					<!-- [skip ci] stops the release commits from triggering the pipeline again. -->
 					<scmCommentPrefix>[skip ci] [maven-release-plugin] </scmCommentPrefix>

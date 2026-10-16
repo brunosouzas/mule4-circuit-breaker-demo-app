@@ -1,11 +1,10 @@
-# BRU-58 — evidence index
+# CloudHub 2.0 validation — evidence index
 
 Evidence gathered against the real CloudHub 2.0 `test` deployment
 (`mule4-circuit-breaker-demo-app-test`, 2 replicas, 0.1 vCore,
 `https://mule4-circuit-breaker-demo-app-test-47xgd0.5sc6y6-4.usa-e2.cloudhub.io`), proving the
 `mule4-circuit-breaker` plugin's cross-replica shared state and measuring the Object Store overhead
-it adds. Collected 2026-09-25. See the
-[Linear issue](https://linear.app/brunosouzas/issue/BRU-58) for the full acceptance criteria.
+it adds. Collected 2026-09-25. The table below lists what each file proves.
 
 No trial-account credentials or secrets are stored in this folder — only response headers, logs
 and timing numbers collected with plain `curl`. The persistent Object Store has no TTL, so the

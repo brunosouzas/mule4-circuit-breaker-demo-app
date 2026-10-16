@@ -372,7 +372,7 @@
 		</munit:validation>
 	</munit:test>
 
-	<!-- BRU-58: get-health (required by the pipeline's post-deployment smoke test) and
+	<!-- CloudHub 2.0 validation: get-health (required by the pipeline's post-deployment smoke test) and
 	     get-orders-bypass (the latency baseline, no circuit-breaker:execute at all). -->
 
 	<munit:test name="test-get-health" description="/health reports UP with the app name and current mule.env">
