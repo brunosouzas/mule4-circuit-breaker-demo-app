@@ -40,10 +40,10 @@ feature/* ──PR──▶ develop ──▶ SNAPSHOT to Exchange ──▶ tes
 This repo follows the same GitFlow/Azure Pipelines pattern as
 [mulesoft-orders-api](https://github.com/brunosouzas/mulesoft-orders-api) — see
 [`azure-pipelines.yml`](azure-pipelines.yml), [`deployment/test.yaml`](deployment/test.yaml) and
-[CONTRIBUTING.md](CONTRIBUTING.md). **The CloudHub 2.0 validation only exercises `develop` → `test`.** `main` (Maven
-release, `uat`, `prod`) is deliberately out of scope for that validation — production environments are
+[CONTRIBUTING.md](CONTRIBUTING.md). **The CloudHub 2.0 validation (recorded in [`evidence/cloudhub-2/`](evidence/cloudhub-2/)) exercised only
+`develop` → `test`.** `main` (Maven release, `uat`, `prod`) was deliberately out of scope for it — production environments are
 excluded by design, and `uat`/`prod` are left for later work rather than spending the trial
-account's resources on environments this validation doesn't need.
+account's resources on environments the validation didn't need.
 
 ## Environments
 

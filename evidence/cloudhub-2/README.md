@@ -9,7 +9,8 @@ it adds. Collected 2026-09-25. The table below lists what each file proves.
 No trial-account credentials or secrets are stored in this folder — only response headers, logs
 and timing numbers collected with plain `curl`. The persistent Object Store has no TTL, so the
 `bru58-*` circuit keys created while gathering this evidence stay stored for the life of the trial
-account (expires 24/10/2026) — not a leak, just worth knowing.
+account (expires 24/10/2026) — not a leak, just worth knowing. `bru58-` is only the prefix the
+keys were created with; it is kept as-is so the records here match what was stored.
 
 | File | What it proves |
 |---|---|

@@ -41,5 +41,5 @@ wasn't confirmed against Runtime Manager logs (no direct log access from this se
 the circuit breaker's own behaviour (the call still fails and still counts toward the window, just
 faster than documented, from a different error path than the one that reaches `HTTP:TIMEOUT`).
 Flagged here for the record; fixing it (bundling/confirming the Groovy engine for CloudHub 2.0, or
-replacing the sleep with a mechanism that doesn't depend on it) is follow-up work, not part of
-this validation's acceptance criteria.
+replacing the sleep with a mechanism that doesn't depend on it) is follow-up work, outside the
+scope of this validation.
