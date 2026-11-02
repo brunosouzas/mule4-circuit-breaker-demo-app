@@ -15,7 +15,7 @@ Article: `50-writing/circuit-breaker-in-mulesoft/`
 - Build: `mvn -B clean package -DskipMunitTests` (needs an anypoint-exchange-v3 server entry in ~/.m2/settings.xml for the plugin, see README.md)
 - Test: `mvn clean test` (MUnit; needs the MuleSoft Enterprise repository credentials)
 - Run locally: `mvn clean package`, run it on a local Mule runtime and use the curl calls in README.md against localhost:8081
-- Deliver and verify: `a merge into develop runs the Azure Pipelines GitFlow template (azure-devops-mulesoft-pipelines, pinned tag): build, publish x.y.z-SNAPSHOT to Exchange, deploy to test; a release/x.y.z pull request into main runs the Maven release; verify GET /health in each environment reached answers with that environment's name (URLs in README.md)`
+- Deliver and verify: `a merge into develop runs the Azure Pipelines GitFlow template (azure-devops-mulesoft-pipelines, pinned tag): build, publish x.y.z-SNAPSHOT to Exchange, deploy to test; a release/x.y.z pull request into main runs the Maven release; verify GET /health in each environment reached answers with that environment's name (URLs in README.md) (today the Anypoint trial has ended and the CloudHub environments return 404, and the pipeline fails on AB#72, so a merge delivers nothing; verify that the links and paths the article cites still work); main has no uat/prod deployment files, so a release stops at deploy_uat`
 
 ## Technology declarations
 
