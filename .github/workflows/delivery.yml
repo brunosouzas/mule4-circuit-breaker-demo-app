@@ -35,7 +35,7 @@ permissions: {}
 
 jobs:
   app:
-    uses: brunosouzas/github-reusable-workflows/.github/workflows/mulesoft-app.yml@82c6b5d4fb494d167e7d451343eaba39e7dfd87e # v0.2.0
+    uses: brunosouzas/github-reusable-workflows/.github/workflows/mulesoft-app.yml@6d4139859455a3c18d03bcbe0f747df5602725a4 # v0.2.2
     permissions:
       contents: read
     with:
