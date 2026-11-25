@@ -6,7 +6,7 @@
 	     delivery workflow replaces it with that ID in the checkout it publishes and deploys. -->
 	<groupId>com.brunosouzas.mulesoft</groupId>
 	<artifactId>mule4-circuit-breaker-demo-app</artifactId>
-	<version>2.0.0-SNAPSHOT</version>
+	<version>2.1.0-SNAPSHOT</version>
 	<packaging>mule-application</packaging>
 
 	<name>mule4-circuit-breaker-demo-app</name>
