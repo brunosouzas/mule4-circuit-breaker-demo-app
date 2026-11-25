@@ -1,0 +1,50 @@
+name: delivery
+
+# The delivery of this application (github-reusable-workflows, mulesoft/README.md): a pull request
+# builds it; main deploys to TEST; Criar release opens release/X.Y.Z, which deploys to UAT; Release makes
+# the tag, whose push deploys it to UAT and then, after approval, to PROD; a run on a tag is a rollback.
+# mule4-circuit-breaker is built from its released tag (circuit.breaker.version), so no Anypoint account
+# is needed to build this application.
+on:
+  pull_request:
+    branches: [main, "release/**"]
+  push:
+    branches: [main, "release/**"]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: auto (the ref decides), criar-release (on main) or release (on release/X.Y.Z)
+        type: choice
+        options: [auto, criar-release, release]
+        default: auto
+      version:
+        description: "Criar release: X.Y.Z, or none for main's version"
+        type: string
+        default: none
+      pull-requests:
+        description: "Criar release: pull request numbers merged into main, or none"
+        type: string
+        default: none
+      base:
+        description: "Criar release: latest-tag, or a commit of main"
+        type: string
+        default: latest-tag
+
+permissions: {}
+
+jobs:
+  app:
+    uses: brunosouzas/github-reusable-workflows/.github/workflows/mulesoft-app.yml@82c6b5d4fb494d167e7d451343eaba39e7dfd87e # v0.2.0
+    permissions:
+      contents: read
+    with:
+      action: ${{ inputs.action || 'auto' }}
+      version: ${{ inputs.version || 'none' }}
+      pull-requests: ${{ inputs.pull-requests || 'none' }}
+      base: ${{ inputs.base || 'latest-tag' }}
+      install-from-source: |
+        brunosouzas/mule4-circuit-breaker circuit.breaker.version
+    secrets:
+      ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
+      RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}

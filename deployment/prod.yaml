@@ -1,0 +1,12 @@
+# CloudHub 2.0 settings for the prod environment, read by the delivery workflow (mulesoft-deploy.yml of
+# github-reusable-workflows). The gh- prefix marks the applications this public GitHub Actions delivery owns.
+applicationName: gh-mule4-circuit-breaker-demo-app-prod
+target: Cloudhub-US-East-2
+# 4.9.1, not 4.9.0: mule4-circuit-breaker is built against Mule 4.9.1 (its own pom.xml's
+# mule.version) and CloudHub 2.0 refuses to deploy it on an older runtime.
+runtimeVersion: 4.9.1
+# One replica outside TEST saves the trial's vCores; TEST runs two, which the shared-state scenarios need.
+replicas: 1
+vCores: 0.1
+# The check after the deploy: GET <the application's public URL><healthPath> answers 200.
+healthPath: /health
