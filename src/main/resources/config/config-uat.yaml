@@ -1,0 +1,10 @@
+# The uat environment on CloudHub 2.0. global.xml loads config/config-${mule.env}.yaml, and the
+# deploy sets mule.env to the environment's name, so this file must exist for the application to
+# start. It keeps the demo-friendly circuit breaker tuning of common.yaml (the deploy also pins it).
+cb:
+  windowSize: "5"
+  minimumCalls: "5"
+  failureRateThreshold: "50"
+  resetTimeout: "10000"
+  permittedCallsInHalfOpen: "1"
+  successThreshold: "1"
