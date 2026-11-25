@@ -25,7 +25,7 @@ curl → GET /orders/{circuitKey} → circuit-breaker:execute → GET /backend/o
 | GET | `/orders/{circuitKey}` | Client endpoint; `circuitKey` selects which circuit this call belongs to |
 | GET | `/orders-bypass/{circuitKey}` | Same client contract and same backend call as `/orders/{circuitKey}`, but never wrapped in `<circuit-breaker:execute>` — the latency baseline used to measure the Object Store's overhead (see [Limits](#limits)) |
 | GET | `/backend/orders` | Simulated backend; behaviour controlled by the `X-Demo-Backend-Mode` request header |
-| GET | `/health` | `{ status, application, environment }` — used by the pipeline's post-deployment smoke test |
+| GET | `/health` | `{ status, application, environment }` — checked after each deploy by the delivery workflow |
 
 Every response also carries an `X-Replica-Id` header (the CloudHub 2.0 pod's `HOSTNAME`), so a
 caller can tell which replica answered — see [Delivery flow](#delivery-flow) and
@@ -33,26 +33,41 @@ caller can tell which replica answered — see [Delivery flow](#delivery-flow) a
 
 ## Delivery flow
 
+GitHub Actions, with the reusable workflow `mulesoft-app.yml` of
+[github-reusable-workflows](https://github.com/brunosouzas/github-reusable-workflows) (its
+`mulesoft/README.md` has the whole process and its setup):
+
 ```
-feature/* ──PR──▶ develop ──▶ SNAPSHOT to Exchange ──▶ test (CloudHub 2.0, 2 replicas)
+feature/* ──PR──▶ main ──▶ TEST
+                   │  Criar release (the chosen pull requests, onto the latest tag)
+                   ▼
+             release/X.Y.Z ──▶ UAT
+                   │  Release (Maven release, the tag)
+                   ▼
+              tag vX.Y.Z ──▶ UAT ──approval──▶ PROD ──▶ back-merge into main
 ```
 
-This repo follows the same GitFlow/Azure Pipelines pattern as
-[mulesoft-orders-api](https://github.com/brunosouzas/mulesoft-orders-api) — see
-[`azure-pipelines.yml`](azure-pipelines.yml), [`deployment/test.yaml`](deployment/test.yaml) and
-[CONTRIBUTING.md](CONTRIBUTING.md). **The CloudHub 2.0 validation (recorded in [`evidence/cloudhub-2/`](evidence/cloudhub-2/)) exercised only
-`develop` → `test`.** `main` (Maven release, `uat`, `prod`) was deliberately out of scope for it — production environments are
-excluded by design, and `uat`/`prod` are left for later work rather than spending the trial
-account's resources on environments the validation didn't need.
+- A pull request builds the application (no MUnit in public CI: MUnit needs the Mule Enterprise
+  runtime and a MuleSoft customer credential, which never goes to a public repository; run it
+  locally). It gets no secret, so a fork's pull request deploys nothing.
+- [`.github/workflows/delivery.yml`](.github/workflows/delivery.yml) calls the reusable workflow; the
+  CloudHub 2.0 values of each environment are in [`deployment/`](deployment/).
+- `mule4-circuit-breaker` is built from its released tag (`circuit.breaker.version` in the POM), so no
+  Anypoint account is needed to build this application.
+
+Version 1.x and the evidence in [`evidence/cloudhub-2/`](evidence/cloudhub-2/) come from the Azure
+DevOps GitFlow pipeline the first article describes, which exercised only `develop` → `test`.
 
 ## Environments
 
-| Environment | Health check | Replicas |
+| Environment | Application | Replicas |
 |---|---|---|
-| test | [/health](https://mule4-circuit-breaker-demo-app-test-47xgd0.5sc6y6-4.usa-e2.cloudhub.io/health) | 2 × 0.1 vCore |
+| TEST | `gh-mule4-circuit-breaker-demo-app-test` | 2 × 0.1 vCore |
+| UAT | `gh-mule4-circuit-breaker-demo-app-uat` | 1 × 0.1 vCore |
+| PROD | `gh-mule4-circuit-breaker-demo-app-prod` | 1 × 0.1 vCore |
 
-Runs on an Anypoint Platform trial and may be stopped when the trial ends (24/10/2026) — the
-evidence in [`evidence/cloudhub-2/`](evidence/cloudhub-2/) does not depend on it staying up.
+Each deploy's run prints the application's public URL and its `/health` answer. They run on an
+Anypoint Platform trial and stop when the trial ends.
 
 ## Running locally
 
@@ -60,12 +75,12 @@ evidence in [`evidence/cloudhub-2/`](evidence/cloudhub-2/) does not depend on it
    ```bash
    mvn clean package
    ```
-   `mule4-circuit-breaker` resolves from the Anypoint Exchange of the trial org
-   (`c17ce335-be76-4fd0-87e2-130837d2c65a`, see [pom.xml](pom.xml)) — no local `mvn install` of the
-   plugin repo needed. This requires an `anypoint-exchange-v3` server entry in `~/.m2/settings.xml`
-   with Exchange **read** access; a Connected App scoped only to publish (the one the plugin's own
-   release pipeline uses) can't resolve it and fails with a 404 "Asset file not found".
-   This produces `target/mule4-circuit-breaker-demo-app-0.1.0-SNAPSHOT-mule-application.jar`.
+   after installing `mule4-circuit-breaker` from its tag, with no Anypoint account:
+   ```bash
+   git clone --branch v2.0.0 https://github.com/brunosouzas/mule4-circuit-breaker.git
+   mvn -f mule4-circuit-breaker/pom.xml -DskipTests install
+   ```
+   This produces `target/mule4-circuit-breaker-demo-app-<version>-mule-application.jar`.
 2. Deploy it to a Mule 4 standalone runtime you already have installed locally: copy that jar into `<MULE_HOME>/apps/` and start (or restart) the runtime — `bin/mule start` (or `bin/mule restart` if it's already running). The app listens on port `8081` by default (`src/main/resources/config/common.yaml`).
 
 ## Scenarios

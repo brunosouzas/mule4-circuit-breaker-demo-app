@@ -2,12 +2,11 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<!-- groupId is the Anypoint organization (business group) ID, required to publish/deploy this
-	     app itself via Exchange - see mulesoft-orders-api's pom.xml and the mule4-circuit-breaker
-	     dependency below, which documents the same convention for its own groupId. -->
-	<groupId>c17ce335-be76-4fd0-87e2-130837d2c65a</groupId>
+	<!-- The canonical groupId. Exchange takes an application only under its organisation's ID, so the
+	     delivery workflow replaces it with that ID in the checkout it publishes and deploys. -->
+	<groupId>com.brunosouzas.mulesoft</groupId>
 	<artifactId>mule4-circuit-breaker-demo-app</artifactId>
-	<version>0.1.0-SNAPSHOT</version>
+	<version>2.0.0-SNAPSHOT</version>
 	<packaging>mule-application</packaging>
 
 	<name>mule4-circuit-breaker-demo-app</name>
@@ -50,7 +49,9 @@
 		<munit.version>3.7.1</munit.version>
 		<mule.http.connector.version>1.11.3</mule.http.connector.version>
 		<mule.scripting.module.version>2.1.1</mule.scripting.module.version>
-		<circuit.breaker.version>1.1.0</circuit.breaker.version>
+		<!-- A released tag of mule4-circuit-breaker: the delivery builds it from that tag (mvn install),
+		     so no Anypoint account is needed to build this application. -->
+		<circuit.breaker.version>2.0.0</circuit.breaker.version>
 		<maven.release.plugin.version>3.3.1</maven.release.plugin.version>
 		<!-- Deployment values are passed by the pipeline from deployment/<env>.yaml -->
 		<deploy.environment>test</deploy.environment>
@@ -116,13 +117,12 @@
 				<artifactId>maven-release-plugin</artifactId>
 				<version>${maven.release.plugin.version}</version>
 				<configuration>
-					<!-- Inert so far: the release stage only runs off `main`, which the
-					     CloudHub 2.0 validation never touched (deploy stayed scoped to develop -> test). Present
-					     for parity with mulesoft-orders-api and future readiness. -->
-					<!-- [skip ci] stops the release commits from triggering the pipeline again. -->
-					<scmCommentPrefix>[skip ci] [maven-release-plugin] </scmCommentPrefix>
+					<!-- release:prepare only, run by the Release of the delivery workflow. The release commit,
+					     the one the tag points to, has no skip-CI marker, so the tag's push runs UAT and PROD;
+					     the next-iteration commit has [skip ci], so the branch's push runs nothing. -->
 					<tagNameFormat>v@{project.version}</tagNameFormat>
-					<goals>deploy</goals>
+					<scmReleaseCommitComment>chore(release): v@{releaseLabel}</scmReleaseCommitComment>
+					<scmDevelopmentCommitComment>[skip ci] chore(release): next development iteration after v@{releaseLabel}</scmDevelopmentCommitComment>
 					<pushChanges>true</pushChanges>
 				</configuration>
 			</plugin>
@@ -182,9 +182,7 @@
 			<classifier>mule-plugin</classifier>
 		</dependency>
 		<dependency>
-			<!-- groupId is the Anypoint organization (business group) ID the plugin is published
-			     under on Exchange, not a Java package name - see mule4-circuit-breaker's own pom.xml. -->
-			<groupId>c17ce335-be76-4fd0-87e2-130837d2c65a</groupId>
+			<groupId>com.brunosouzas.mulesoft</groupId>
 			<artifactId>mule4-circuit-breaker</artifactId>
 			<version>${circuit.breaker.version}</version>
 			<classifier>mule-plugin</classifier>

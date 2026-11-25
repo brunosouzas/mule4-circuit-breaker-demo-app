@@ -6,16 +6,16 @@ A Mule 4 application that uses the [mule4-circuit-breaker](https://github.com/br
 
 ## Technology
 
-Stack: Mule 4, MUnit, Maven, Azure Pipelines, CloudHub 2.0
+Stack: Mule 4, MUnit, Maven, GitHub Actions, CloudHub 2.0
 Delivery: C environments
-Integration branch: `develop`
+Integration branch: `main`
 Data: none
 Article: `50-writing/circuit-breaker-in-mulesoft/`
 
 - Build: `mvn -B clean package -DskipMunitTests` (needs an anypoint-exchange-v3 server entry in ~/.m2/settings.xml for the plugin, see README.md)
 - Test: `mvn clean test` (MUnit; needs the MuleSoft Enterprise repository credentials)
 - Run locally: `mvn clean package`, run it on a local Mule runtime and use the curl calls in README.md against localhost:8081
-- Deliver and verify: `a merge into develop runs the Azure Pipelines GitFlow template (azure-devops-mulesoft-pipelines, pinned tag): build, publish x.y.z-SNAPSHOT to Exchange, deploy to test; a release/x.y.z pull request into main runs the Maven release; verify GET /health in each environment reached answers with that environment's name (URLs in README.md) (today the Anypoint trial has ended and the CloudHub environments return 404, and the pipeline fails on AB#72, so a merge delivers nothing; verify that the links and paths the article cites still work); main has no uat/prod deployment files, so a release stops at deploy_uat`
+- Deliver and verify: `.github/workflows/delivery.yml` (the reusable `mulesoft-app.yml` of github-reusable-workflows, pinned by SHA): a merge into `main` deploys TEST; Criar release opens `release/X.Y.Z`, which deploys UAT; Release makes the tag, whose run deploys UAT and then PROD after Bruno's approval; each deploy job checks the application RUNNING the version and `GET /health` 200; then the back-merge pull request into `main`
 
 ## Technology declarations
 
@@ -43,6 +43,6 @@ GitHub default branch inspected on 2026-10-06: `main`. Release bases are defined
 Before planning, reviewing or changing this project, read [the applicable project rules](rules/README.md).
 
 - Article repository: this repository was made for a published article and keeps what the article published (its code, branches and pipeline). A change here changes the article, so every merge is Bruno's (level 2), also under a delegation.
-- Board area: `mulesoft` (Azure Boards, project `brunosouzas`).
+- Tracker: Linear brunosouzas, team SW, label mulesoft.
 - OpenSpec: no: every change takes the small path.
-- Branches follow GitFlow as published: changes go to `develop`; `main` only through a `release/` or `hotfix/` pull request, because a merge into `main` runs the Maven release.
+- Branches since 2.0.0: a change is a pull request from `feature/sw-<n>-<slug>` into `main`; a UAT fix is a pull request into the open `release/X.Y.Z`; squash merges with a message written by hand and no skip-CI marker. Criar release, Release and PROD are Bruno's runs. The 1.x history keeps the Azure DevOps GitFlow pipeline the first article describes.
