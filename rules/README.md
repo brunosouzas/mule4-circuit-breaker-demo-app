@@ -2,9 +2,9 @@
 
 ## Scope, isolation and authority
 
-Use the human-approved task and preserve unrelated work. Read applicable nested instructions before changing their scope; report conflicting contracts. Work in the approved task checkout. Do not modify the active Obsidian checkout. Ordinary workers do not recruit or delegate; only an explicitly authorized Orchestrator coordinates an approved team, subject to the project-specific contract.
+Use the human-approved task and preserve unrelated work. Read applicable nested instructions before changing their scope; report conflicting contracts. Work in the approved task checkout. Do not modify the active Obsidian checkout. Subagents do not recruit or delegate; only an explicitly authorized coordinating session runs an approved set of agents, subject to the project-specific contract.
 
-Role prompts do not establish effective sandbox permissions. Reviewers use read-only execution; checks that write belong to the authorized executor or Validator. Keep secrets and sensitive production data out of Git and AI evidence; use synthetic or redacted fixtures.
+Role prompts do not establish effective sandbox permissions. Reviewers use read-only execution; checks that write belong to the authorized executor, never to a reviewer. Keep secrets and sensitive production data out of Git and AI evidence; use synthetic or redacted fixtures.
 
 ## Validation and delivery
 
@@ -14,4 +14,4 @@ Commit, push, PR creation, merge, publication, deployment and external writes re
 
 ## Local standards and maintenance
 
-Keep project facts in AGENTS.md and obligations in this rules index. Reusable processes and roles are owned by ai-engineering-kit; select the relevant installed skill instead of copying it into the project. Update context when source declarations change, distinguishing declared, inherited and observed versions.
+Keep project facts in AGENTS.md and obligations in this rules index. Reusable processes and roles are owned by the installed Claude Code plugins (start with the `engineering:engineering` skill); select the relevant installed skill instead of copying it into the project. Update context when source declarations change, distinguishing declared, inherited and observed versions.
